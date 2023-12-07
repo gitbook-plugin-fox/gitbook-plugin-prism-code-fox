@@ -4,23 +4,25 @@ var path = require('path');
 var fs = require('fs');
 var cheerio = require('cheerio');
 var mkdirp = require('mkdirp');
+var codeBlocks = require('gfm-code-blocks');
+var trim = require('lodash/trim');
 
 var DEFAULT_LANGUAGE = 'markup';
 var MAP_LANGUAGES = {
-  'py': 'python',
-  'js': 'javascript',
-  'rb': 'ruby',
-  'cs': 'csharp',
-  'sh': 'bash',
-  'html': 'markup'
+    'py': 'python',
+    'js': 'javascript',
+    'rb': 'ruby',
+    'cs': 'csharp',
+    'sh': 'bash',
+    'html': 'markup'
 };
 
 // Base languages syntaxes (as of prism@1.6.0), extended by other syntaxes.
 // They need to be required before the others.
 var PRELUDE = [
-  'markup-templating', 'clike', 'javascript', 'markup', 'c', 'ruby', 'css',
-  // The following depends on previous ones
-  'java', 'php'
+    'markup-templating', 'clike', 'javascript', 'markup', 'c', 'ruby', 'css',
+    // The following depends on previous ones
+    'java', 'php'
 ];
 PRELUDE.map(requireSyntax);
 
@@ -28,157 +30,199 @@ PRELUDE.map(requireSyntax);
  * Load the syntax definition for a language id
  */
 function requireSyntax(lang) {
-  require('prismjs/components/prism-' + lang + '.js');
+    require('prismjs/components/prism-' + lang + '.js');
 }
 
 function getConfig(context, property, defaultValue) {
-  var config = context.config ? /* 3.x */ context.config : /* 2.x */ context.book.config;
-  return config.get(property, defaultValue);
+    var config = context.config ? /* 3.x */ context.config : /* 2.x */ context.book.config;
+    return config.get(property, defaultValue);
 }
 
 function isEbook(book) {
-  // 2.x
-  if (book.options && book.options.generator) {
-    return book.options.generator === 'ebook';
-  }
+    // 2.x
+    if (book.options && book.options.generator) {
+        return book.options.generator === 'ebook';
+    }
 
-  // 3.x
-  return book.output.name === 'ebook';
+    // 3.x
+    return book.output.name === 'ebook';
 }
 
 function getAssets() {
 
-  var cssFiles = getConfig(this, 'pluginsConfig.prism.css', []);
-  var cssFolder = null;
-  var cssNames = [];
-  var cssName = null;
+    var cssFiles = getConfig(this, 'pluginsConfig.prism.css', []);
+    var cssFolder = null;
+    var cssNames = [];
+    var cssName = null;
 
-  if (cssFiles.length === 0) {
-    cssFiles.push('prismjs/themes/prism.css');
-  }
+    if (cssFiles.length === 0) {
+        cssFiles.push('prismjs/themes/prism.css');
+    }
 
-  cssFiles.forEach(function(cssFile) {
-    var cssPath = require.resolve(cssFile);
-    cssFolder = path.dirname(cssPath);
-    cssName = path.basename(cssPath);
-    cssNames.push(cssName);
-  });
+    cssFiles.forEach(function(cssFile) {
+        var cssPath = require.resolve(cssFile);
+        cssFolder = path.dirname(cssPath);
+        cssName = path.basename(cssPath);
+        cssNames.push(cssName);
+    });
 
-  return {
-    assets: cssFolder,
-    css: cssNames
-  };
+    cssNames.push('codetab/codetab.css');
+    return {
+        assets: cssFolder,
+        css: cssNames,
+        js: ['codetab/codetab.js']
+    };
 }
 
-module.exports = {
-  book: getAssets,
-  ebook: function() {
+function syncFile(book, outputDirectory, outputFile, inputFile) {
+    outputDirectory = path.join(book.output.root(), '/gitbook/gitbook-plugin-prism/' + outputDirectory);
+    outputFile = path.resolve(outputDirectory, outputFile);
+    inputFile = path.resolve(__dirname, inputFile);
+    mkdirp.sync(outputDirectory);
 
-    // Adding prism-ebook.css to the CSS collection forces Gitbook
-    // reference to it in the html markup that is converted into a PDF.
-    var assets = getAssets.call(this);
-    assets.css.push('prism-ebook.css');
-    return assets;
+    try {
+        fs.writeFileSync(outputFile, fs.readFileSync(inputFile));
+    } catch (e) {
+        console.warn('Failed to write ' + inputFile);
+        console.warn(e);
+    }
 
-  },
-  blocks: {
-    code: function(block) {
+}
 
-      var highlighted = '';
-      var userDefined = getConfig(this, 'pluginsConfig.prism.lang', {});
-      var userIgnored = getConfig(this, 'pluginsConfig.prism.ignore', []);
+function processCode(block, context) {
 
-      // Normalize language id
-      var lang = block.kwargs.language || DEFAULT_LANGUAGE;
-      lang = userDefined[lang] || MAP_LANGUAGES[lang] || lang;
+    var highlighted = '';
+    var userDefined = getConfig(context, 'pluginsConfig.prism.lang', {});
+    var userIgnored = getConfig(context, 'pluginsConfig.prism.ignore', []);
 
-      // Check to see if the lang is ignored
-      if (userIgnored.indexOf(lang) > -1) {
+    // Normalize language id
+    var lang = block.language || block.kwargs.language || DEFAULT_LANGUAGE;
+    lang = userDefined[lang] || MAP_LANGUAGES[lang] || lang;
+
+    // Check to see if the lang is ignored
+    if (userIgnored.indexOf(lang) > -1) {
         return block.body;
-      }
+    }
 
-      // Try and find the language definition in components folder
-      if (!languages[lang]) {
+    // Try and find the language definition in components folder
+    if (!languages[lang]) {
         try {
-          requireSyntax(lang);
+            requireSyntax(lang);
         } catch (e) {
-          console.warn('Failed to load prism syntax: ' + lang);
-          console.warn(e);
+            console.warn('Failed to load prism syntax: ' + lang);
+            console.warn(e);
         }
-      }
+    }
 
-      if (!languages[lang]) lang = DEFAULT_LANGUAGE;
+    if (!languages[lang]) lang = DEFAULT_LANGUAGE;
 
-      // Check against html, prism "markup" works for this
-      if (lang === 'html') {
+    // Check against html, prism "markup" works for this
+    if (lang === 'html') {
         lang = 'markup';
-      }
+    }
 
-      try {
+    try {
         // The process can fail (failed to parse)
         highlighted = Prism.highlight(block.body, languages[lang]);
-      } catch (e) {
+    } catch (e) {
         console.warn('Failed to highlight:');
         console.warn(e);
         highlighted = block.body;
-      }
-
-      return highlighted;
-
     }
-  },
-  hooks: {
+    return highlighted;
+}
 
-    // Manually copy prism-ebook.css into the temporary directory that Gitbook uses for inlining
-    // styles from this plugin. The getAssets() (above) function can't be leveraged because
-    // ebook-prism.css lives outside the folder referenced by this plugin's config.
-    //
-    // @Inspiration https://github.com/GitbookIO/plugin-styles-less/blob/master/index.js#L8
-    init: function() {
+function createTab(block, i, isActive) {
+    return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '">' + block.language + '</div>';
+}
 
-      var book = this;
+function createTabBody(i, language, data) {
+    let isActive = i == 0;
+    return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '"><pre><code class="lang-' + language + '">' +
+        data +
+        '</code></pre></div>';
+}
 
-      if (!isEbook(book)) {
-        return;
-      }
+module.exports = {
+    book: getAssets,
+    ebook: function() {
 
-      var outputDirectory = path.join(book.output.root(), '/gitbook/gitbook-plugin-prism');
-      var outputFile = path.resolve(outputDirectory, 'prism-ebook.css');
-      var inputFile = path.resolve(__dirname, './prism-ebook.css');
-      mkdirp.sync(outputDirectory);
-
-      try {
-        fs.writeFileSync(outputFile, fs.readFileSync(inputFile));
-      } catch (e) {
-        console.warn('Failed to write prism-ebook.css. See https://git.io/v1LHY for side effects.');
-        console.warn(e);
-      }
-
+        // Adding prism-ebook.css to the CSS collection forces Gitbook
+        // reference to it in the html markup that is converted into a PDF.
+        var assets = getAssets.call(this);
+        assets.css.push('prism-ebook.css');
+        return assets;
     },
-    page: function(page) {
+    blocks: {
+        code: function(block) {
+            return processCode(block, this);
+        },
+        codetab: function(content) {
+            let blocks = codeBlocks(content.body).map(({
+                lang,
+                code
+            }) => ({
+                language: trim(lang),
+                body: trim(code)
+            }));
+            let result = '<div class="codetabs">';
+            let tabsHeader = '';
+            let tabsContent = '';
+            blocks.forEach((block, i) => {
+                let data = processCode(block, this);
+                tabsHeader += createTab(block, i, i == 0);
+                tabsContent += createTabBody(i, block.language, data);
+            });
+            result += '<div class="codetabs-header">' + tabsHeader + '</div>';
+            result += '<div class="codetabs-body">' + tabsContent + '</div>';
+            result += '</div>';
+            return result;
+        }
+    },
+    hooks: {
 
-      var highlighted = false;
+        // Manually copy prism-ebook.css into the temporary directory that Gitbook uses for inlining
+        // styles from this plugin. The getAssets() (above) function can't be leveraged because
+        // ebook-prism.css lives outside the folder referenced by this plugin's config.
+        //
+        // @Inspiration https://github.com/GitbookIO/plugin-styles-less/blob/master/index.js#L8
+        init: function() {
 
-      var $ = cheerio.load(page.content);
+            var book = this;
 
-      // Prism css styles target the <code> and <pre> blocks using
-      // a substring CSS selector:
-      //
-      //    code[class*="language-"], pre[class*="language-"]
-      //
-      // Adding "language-" to <pre> element should be sufficient to trigger
-      // correct color theme.
-      $('pre').each(function() {
-        highlighted = true;
-        const $this = $(this);
-        $this.addClass('language-');
-      });
+            syncFile(book, 'codetab', 'codetab.js', './codetab/codetab.js');
+            syncFile(book, 'codetab', 'codetab.css', './codetab/codetab.css');
 
-      if (highlighted) {
-        page.content = $.html();
-      }
+            // If failed to write prism-ebook.css. See https://git.io/v1LHY for side effects.
+            if (isEbook(book)) {
+                syncFile(book, '', 'prism-ebook.css', './prism-ebook.css');
+            }
 
-      return page;
+        },
+        page: function(page) {
+
+            var highlighted = false;
+            var $ = cheerio.load(page.content);
+
+            // Prism css styles target the <code> and <pre> blocks using
+            // a substring CSS selector:
+            //
+            //    code[class*="language-"], pre[class*="language-"]
+            //
+            // Adding "language-" to <pre> element should be sufficient to trigger
+            // correct color theme.
+            //console.log(page.content);
+            $('pre').each(function() {
+                highlighted = true;
+                const $this = $(this);
+                $this.addClass('language-');
+            });
+
+            if (highlighted) {
+                page.content = $.html();
+            }
+
+            return page;
+        }
     }
-  }
 };
