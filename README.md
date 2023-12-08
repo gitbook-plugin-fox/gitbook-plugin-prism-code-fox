@@ -1,5 +1,3 @@
-[[_TOC_]]
-
 # Prism Code Tab
 
 Gitbook Plugin for [Prism](http://prismjs.com/) and support code tabs with custom configuartion name.
@@ -41,6 +39,8 @@ The default value of `codeTabSepearator` is **`::`**, we can set a global value 
 
 {% endcodetab %}
 ```
+
+Priority order is `Custom config` > `Global config` > `Default config`
 
 ## Default config
 
