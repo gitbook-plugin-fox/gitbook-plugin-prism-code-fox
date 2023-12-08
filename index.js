@@ -6,8 +6,11 @@ var cheerio = require('cheerio');
 var mkdirp = require('mkdirp');
 var codeBlocks = require('gfm-code-blocks');
 var trim = require('lodash/trim');
+const includes = require('lodash/includes');
+const get = require('lodash/get');
 
 var DEFAULT_LANGUAGE = 'markup';
+var DEFAULT_CODE_TAB_SEPERATOR = '::';
 var MAP_LANGUAGES = {
     'py': 'python',
     'js': 'javascript',
@@ -89,14 +92,14 @@ function syncFile(book, outputDirectory, outputFile, inputFile) {
 
 }
 
-function processCode(block, context) {
+function processCode(language, block, context) {
 
-    var highlighted = '';
-    var userDefined = getConfig(context, 'pluginsConfig.prism.lang', {});
-    var userIgnored = getConfig(context, 'pluginsConfig.prism.ignore', []);
+    let highlighted = '';
+    let userDefined = getConfig(context, 'pluginsConfig.prism.lang', {});
+    let userIgnored = getConfig(context, 'pluginsConfig.prism.ignore', []);
 
+    let lang = language || block.language || block.kwargs.language || DEFAULT_LANGUAGE;
     // Normalize language id
-    var lang = block.language || block.kwargs.language || DEFAULT_LANGUAGE;
     lang = userDefined[lang] || MAP_LANGUAGES[lang] || lang;
 
     // Check to see if the lang is ignored
@@ -132,8 +135,8 @@ function processCode(block, context) {
     return highlighted;
 }
 
-function createTab(block, i, isActive) {
-    return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '">' + block.language + '</div>';
+function createTabHeader(title, i, isActive) {
+    return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '">' + title + '</div>';
 }
 
 function createTabBody(i, language, data) {
@@ -141,6 +144,19 @@ function createTabBody(i, language, data) {
     return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '"><pre><code class="lang-' + language + '">' +
         data +
         '</code></pre></div>';
+}
+
+function getCodeTabSeperator(block, context) {
+    let codeTabSeperator = block.kwargs.codeTabSeperator || getConfig(context, 'pluginsConfig.prism.codeTabSeperator', '') || DEFAULT_CODE_TAB_SEPERATOR;
+    return codeTabSeperator;
+}
+
+function getCodeTabInfo(lang, tabNameSeperator) {
+    if (includes(lang, tabNameSeperator)) {
+        let data = lang.split(tabNameSeperator);
+        return [trim(get(data, '[0]', lang)), trim(get(data, '[1]', lang))];
+    }
+    return [lang, lang];
 }
 
 module.exports = {
@@ -155,9 +171,10 @@ module.exports = {
     },
     blocks: {
         code: function(block) {
-            return processCode(block, this);
+            return processCode(null, block, this);
         },
         codetab: function(content) {
+            let codeTabSeperator = getCodeTabSeperator(content, this);
             let blocks = codeBlocks(content.body).map(({
                 lang,
                 code
@@ -169,9 +186,10 @@ module.exports = {
             let tabsHeader = '';
             let tabsContent = '';
             blocks.forEach((block, i) => {
-                let data = processCode(block, this);
-                tabsHeader += createTab(block, i, i == 0);
-                tabsContent += createTabBody(i, block.language, data);
+                let tabInfo = getCodeTabInfo(block.language, codeTabSeperator);
+                let data = processCode(tabInfo[0], block, this);
+                tabsHeader += createTabHeader(tabInfo[1], i, i == 0);
+                tabsContent += createTabBody(i, tabInfo[0], data);
             });
             result += '<div class="codetabs-header">' + tabsHeader + '</div>';
             result += '<div class="codetabs-body">' + tabsContent + '</div>';
