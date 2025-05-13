@@ -79,7 +79,7 @@ function getAssets() {
 }
 
 function syncFile(book, outputDirectory, outputFile, inputFile) {
-    outputDirectory = path.join(book.output.root(), '/gitbook/gitbook-plugin-prism-codetab-fox/' + outputDirectory);
+    outputDirectory = path.join(book.output.root(), '/gitbook/gitbook-plugin-prism-code-fox/' + outputDirectory);
     outputFile = path.resolve(outputDirectory, outputFile);
     inputFile = path.resolve(__dirname, inputFile);
     mkdirp.sync(outputDirectory);
