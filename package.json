@@ -1,8 +1,8 @@
 {
-  "name": "gitbook-plugin-prism-codetab-fox",
-  "description": "Prism highlighting for gitbook",
+  "name": "gitbook-plugin-prism-code-fox",
+  "description": "Prism highlighting for gitbook,enable code tab",
   "main": "index.js",
-  "version": "0.0.4",
+  "version": "0.0.1",
   "scripts": {
     "lint": "eslint index.js test.js",
     "test": "npm run lint && tape test.js"

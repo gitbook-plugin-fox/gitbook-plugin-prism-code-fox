@@ -69,11 +69,12 @@ function getAssets() {
         cssNames.push(cssName);
     });
 
+    cssNames.push('code/code.css');
     cssNames.push('codetab/codetab.css');
     return {
         assets: cssFolder,
         css: cssNames,
-        js: ['codetab/codetab.js']
+        js: ['code/code.js','codetab/codetab.js']
     };
 }
 
@@ -207,6 +208,9 @@ module.exports = {
         init: function() {
 
             var book = this;
+			
+			syncFile(book, 'code', 'code.js', './code/code.js');
+            syncFile(book, 'code', 'code.css', './code/code.css');
 
             syncFile(book, 'codetab', 'codetab.js', './codetab/codetab.js');
             syncFile(book, 'codetab', 'codetab.css', './codetab/codetab.css');
