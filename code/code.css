@@ -35,3 +35,14 @@
   margin-right: 1.5em;
   width: 1em;
 }
+
+code > span.highlight-line{
+	display: block;
+    padding: 0 15px;
+    margin: 0 -15px -22.3px;
+	background: linear-gradient(to right, hsla(24, 20%, 50%, .1) 70%, hsla(24, 20%, 50%, 0.1));
+}
+
+code > span.highlight-line:last-child{
+	margin-bottom:-15px;
+}

@@ -74,7 +74,7 @@ function getAssets() {
     return {
         assets: cssFolder,
         css: cssNames,
-        js: ['code/code.js','codetab/codetab.js']
+        js: ['code/code.js', 'codetab/codetab.js']
     };
 }
 
@@ -102,6 +102,10 @@ function processCode(language, block, context) {
     let lang = language || block.language || block.kwargs.language || DEFAULT_LANGUAGE;
     // Normalize language id
     lang = userDefined[lang] || MAP_LANGUAGES[lang] || lang;
+    let propIndex = lang.indexOf('{');
+    if (propIndex > -1) {
+        lang = lang.substring(0, propIndex);
+    }
 
     // Check to see if the lang is ignored
     if (userIgnored.indexOf(lang) > -1) {
@@ -137,12 +141,16 @@ function processCode(language, block, context) {
 }
 
 function createTabHeader(title, i, isActive) {
+    let configIndex = title.indexOf('{');
+    if (configIndex > -1) {
+        title = title.substring(0, configIndex);
+    }
     return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '">' + title + '</div>';
 }
 
 function createTabBody(i, language, data) {
     let isActive = i == 0;
-    return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '"><pre><code class="lang-' + language + '">' +
+    return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '"><pre><code class=\'lang-' + language + '\'>' +
         data +
         '</code></pre></div>';
 }
@@ -177,8 +185,7 @@ module.exports = {
         codetab: function(content) {
             let codeTabSeperator = getCodeTabSeperator(content, this);
             let blocks = codeBlocks(content.body).map(({
-                lang,
-                code
+                lang,code
             }) => ({
                 language: trim(lang),
                 body: trim(code)
@@ -208,8 +215,8 @@ module.exports = {
         init: function() {
 
             var book = this;
-			
-			syncFile(book, 'code', 'code.js', './code/code.js');
+
+            syncFile(book, 'code', 'code.js', './code/code.js');
             syncFile(book, 'code', 'code.css', './code/code.css');
 
             syncFile(book, 'codetab', 'codetab.js', './codetab/codetab.js');
