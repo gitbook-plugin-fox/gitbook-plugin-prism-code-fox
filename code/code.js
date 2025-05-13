@@ -35,12 +35,13 @@ require(['gitbook', 'jQuery'], function(gitbook, $) {
         pluginConfig = config.code;
     }
 
-    function format_code_block(block) {
+    function formatCodeBlock(block) {
         /*
          * Add line numbers for multiline blocks.
          */
-        code = block.children('code');
+        let code = block.children('code');
         let codeConfig = parseCodeConfig(code);
+		
         let highlightLines = [];
         if (!!codeConfig) {
             highlightLines = processHightLineRange(codeConfig['data-line']);
@@ -68,6 +69,10 @@ require(['gitbook', 'jQuery'], function(gitbook, $) {
         wrapper = block.wrap('<div class="code-wrapper"></div>');
 
         addCopyButton(wrapper);
+		
+		if (!!codeConfig) {
+            enableCodeExpandCollapse(code,codeConfig);
+        }
     }
 
     function updateCopyButton(button) {
@@ -91,11 +96,29 @@ require(['gitbook', 'jQuery'], function(gitbook, $) {
 
     gitbook.events.bind('page.change', function() {
         $('pre').each(function() {
-            format_code_block($(this));
+            formatCodeBlock($(this));
         });
     });
 
 });
+
+function enableCodeExpandCollapse(code,codeConfig){
+	const key ='code-expand-collapse';
+	if (!(key in codeConfig)){
+		return;
+	}
+	let hasCodeTab = code.closest(".codetabs-body").length > 0;
+	if(hasCodeTab){
+		return;
+	}
+	let linkStr = codeConfig[key];
+	if(!linkStr){
+		linkStr='点击展开隐藏的代码+';
+	}
+	let codeBlock = code.parents("div.code-wrapper");
+	codeBlock.wrap('<details></details>');
+	codeBlock.parent().prepend(`<summary class='code-expand-collapse'><i class="fa fa-code"></i>&nbsp;${linkStr}</summary>`);
+}
 
 function processHightLineRange(rangeStr) {
     if (!rangeStr) {

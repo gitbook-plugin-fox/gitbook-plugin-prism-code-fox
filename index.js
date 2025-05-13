@@ -184,6 +184,8 @@ module.exports = {
         },
         codetab: function(content) {
             let codeTabSeperator = getCodeTabSeperator(content, this);
+			let hasDetails = ('codeTabDetails' in content.kwargs);
+			let detailsSummary = content.kwargs.codeTabDetails ||'点击展开隐藏的代码+';
             let blocks = codeBlocks(content.body).map(({
                 lang,code
             }) => ({
@@ -191,6 +193,9 @@ module.exports = {
                 body: trim(code)
             }));
             let result = '<div class="codetabs">';
+			if(hasDetails){
+				result = `<details><summary class="tab-code-expand-collapse"><i class="fa fa-code"></i>&nbsp;${detailsSummary}</summary>${result}`;
+			}
             let tabsHeader = '';
             let tabsContent = '';
             blocks.forEach((block, i) => {
@@ -202,6 +207,9 @@ module.exports = {
             result += '<div class="codetabs-header">' + tabsHeader + '</div>';
             result += '<div class="codetabs-body">' + tabsContent + '</div>';
             result += '</div>';
+			if(hasDetails){
+				result += '</details>';
+			}
             return result;
         }
     },

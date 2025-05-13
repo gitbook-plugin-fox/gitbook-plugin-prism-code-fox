@@ -46,3 +46,18 @@ code > span.highlight-line{
 code > span.highlight-line:last-child{
 	margin-bottom:-15px;
 }
+
+.code-expand-collapse{
+	background:#e7e7e7;
+	color:#2674BA;
+	font-weight:bold;
+	padding:5px 10px;
+}
+
+.tab-code-expand-collapse{
+	color:#2674BA;
+	background:#e7e7e7;
+	font-weight:bold;
+	padding:5px 10px;
+	margin-bottom:5px
+}
