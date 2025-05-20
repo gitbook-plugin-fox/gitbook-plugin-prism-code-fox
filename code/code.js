@@ -15,8 +15,6 @@ require(['gitbook', 'jQuery'], function(gitbook, $) {
     }
 
     function addCopyTextarea() {
-
-        /* Add also the text area that will allow to copy */
         $('body').append('<textarea id="code-textarea" />');
     }
 
@@ -36,47 +34,14 @@ require(['gitbook', 'jQuery'], function(gitbook, $) {
     }
 
     function formatCodeBlock(block) {
-        /*
-         * Add line numbers for multiline blocks.
-         */
-        let code = block.children('code');
-        let codeConfig = parseCodeConfig(code);
-		
-        let highlightLines = [];
-        if (!!codeConfig) {
-            highlightLines = processHightLineRange(codeConfig['data-line']);
-        }
-
-        lines = code.html().split('\n');
-        if (lines[lines.length - 1] == '') {
-            lines.splice(-1, 1);
-        }
-
-        if (lines.length > 1) {
-            lines = lines.map((line, index) => {
-                let pos = index + 1;
-                let highlight = '';
-                if (!!highlightLines && highlightLines.some(e => pos >= e.start && pos <= e.end)) {
-                    highlight = 'highlight-line';
-                }
-                let result = `<span class="code-line ${highlight}">${line}</span>`;
-                return result;
-            });
-            code.html(lines.join('\n'));
-        }
-
-        // Add wrapper to pre element
         wrapper = block.wrap('<div class="code-wrapper"></div>');
 
         addCopyButton(wrapper);
-		
-		if (!!codeConfig) {
-            enableCodeExpandCollapse(code,codeConfig);
-        }
+        enableCodeExpandCollapse(block);
     }
 
     function updateCopyButton(button) {
-        id = button.attr('data-command');
+        var id = button.attr('data-command');
         button.removeClass('fa-clone').addClass('fa-check');
 
         // Clear timeout
@@ -95,63 +60,23 @@ require(['gitbook', 'jQuery'], function(gitbook, $) {
     });
 
     gitbook.events.bind('page.change', function() {
-        $('pre').each(function() {
-            formatCodeBlock($(this));
+        $('pre').each(function(index,pre) {
+            formatCodeBlock($(pre));
         });
     });
 
 });
 
-function enableCodeExpandCollapse(code,codeConfig){
-	const key ='code-expand-collapse';
-	if (!(key in codeConfig)){
+function enableCodeExpandCollapse(block){
+	let detailsAttr = block.attr("data-details");
+	if(!detailsAttr){
 		return;
 	}
-	let hasCodeTab = code.closest(".codetabs-body").length > 0;
+	let hasCodeTab = block.closest(".codetabs-body").length > 0;
 	if(hasCodeTab){
 		return;
 	}
-	let linkStr = codeConfig[key];
-	if(!linkStr){
-		linkStr='点击展开隐藏的代码+';
-	}
-	let codeBlock = code.parents("div.code-wrapper");
+	let codeBlock = block.parents("div.code-wrapper");
 	codeBlock.wrap('<details></details>');
-	codeBlock.parent().prepend(`<summary class='code-expand-collapse'><i class="fa fa-code"></i>&nbsp;${linkStr}</summary>`);
-}
-
-function processHightLineRange(rangeStr) {
-    if (!rangeStr) {
-        return null;
-    }
-    let lineRanges = [];
-    let ranges = rangeStr.replace(/\s+/g, '').split(',').filter(Boolean);
-    ranges.forEach(curRange => {
-        let range = curRange.split('-');
-        let start = Number(range[0]);
-        let end = Number(range[1]) || start;
-        if (!Number.isInteger(start) && !Number.isInteger(end)) {
-            return;
-        }
-
-        if (end < start) {
-            return;
-        }
-        lineRanges.push({
-            'start': start,
-            'end': end
-        });
-    });
-    return lineRanges;
-}
-
-function parseCodeConfig(code) {
-    let codeConfig = null;
-    let className = code.attr('class');
-    let classIndex = className.indexOf('{')
-    let dataRange = [];
-    if (classIndex > -1) {
-        codeConfig = JSON.parse(className.substring(classIndex));
-    }
-    return codeConfig;
+	codeBlock.parent().prepend(`<summary class='code-expand-collapse'><i class="fa fa-code"></i>&nbsp;${detailsAttr}</summary>`);
 }

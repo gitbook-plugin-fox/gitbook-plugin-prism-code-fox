@@ -9,6 +9,10 @@ var trim = require('lodash/trim');
 const includes = require('lodash/includes');
 const get = require('lodash/get');
 
+const jsdoms = require('jsdom');
+const JSDOM = jsdoms.jsdom;
+ 
+var DEFAULT_SUMMARY = '点击展开隐藏的代码+';
 var DEFAULT_LANGUAGE = 'markup';
 var DEFAULT_CODE_TAB_SEPERATOR = '::';
 var MAP_LANGUAGES = {
@@ -19,22 +23,6 @@ var MAP_LANGUAGES = {
     'sh': 'bash',
     'html': 'markup'
 };
-
-// Base languages syntaxes (as of prism@1.6.0), extended by other syntaxes.
-// They need to be required before the others.
-var PRELUDE = [
-    'markup-templating', 'clike', 'javascript', 'markup', 'c', 'ruby', 'css',
-    // The following depends on previous ones
-    'java', 'php'
-];
-PRELUDE.map(requireSyntax);
-
-/**
- * Load the syntax definition for a language id
- */
-function requireSyntax(lang) {
-    require('prismjs/components/prism-' + lang + '.js');
-}
 
 function getConfig(context, property, defaultValue) {
     var config = context.config ? /* 3.x */ context.config : /* 2.x */ context.book.config;
@@ -63,18 +51,27 @@ function getAssets() {
     }
 
     cssFiles.forEach(function(cssFile) {
-        var cssPath = require.resolve(cssFile);
-        cssFolder = path.dirname(cssPath);
-        cssName = path.basename(cssPath);
-        cssNames.push(cssName);
+        let cssPath = require.resolve(cssFile);
+		let index = cssPath.indexOf('prismjs');
+        cssFolder = cssPath.substring(0,index);
+        cssNames.push(cssPath.substring(index));
     });
-
+	
     cssNames.push('code/code.css');
     cssNames.push('codetab/codetab.css');
+	cssNames.push('prismjs/plugins/match-braces/prism-match-braces.min.css');
+	cssNames.push('prismjs/plugins/line-numbers/prism-line-numbers.min.css');
+	cssNames.push('prismjs/plugins/line-highlight/prism-line-highlight.min.css');
+	
     return {
         assets: cssFolder,
         css: cssNames,
-        js: ['code/code.js', 'codetab/codetab.js']
+        js: ['code/code.js','codetab/codetab.js','prismjs/components/prism-core.min.js',
+		'prismjs/plugins/autoloader/prism-autoloader.min.js',
+		'prismjs/plugins/match-braces/prism-match-braces.min.js',
+		'prismjs/plugins/line-numbers/prism-line-numbers.min.js',
+		'prismjs/plugins/line-highlight/prism-line-highlight.min.js'
+		]
     };
 }
 
@@ -93,53 +90,6 @@ function syncFile(book, outputDirectory, outputFile, inputFile) {
 
 }
 
-function processCode(language, block, context) {
-
-    let highlighted = '';
-    let userDefined = getConfig(context, 'pluginsConfig.prism.lang', {});
-    let userIgnored = getConfig(context, 'pluginsConfig.prism.ignore', []);
-
-    let lang = language || block.language || block.kwargs.language || DEFAULT_LANGUAGE;
-    // Normalize language id
-    lang = userDefined[lang] || MAP_LANGUAGES[lang] || lang;
-    let propIndex = lang.indexOf('{');
-    if (propIndex > -1) {
-        lang = lang.substring(0, propIndex);
-    }
-
-    // Check to see if the lang is ignored
-    if (userIgnored.indexOf(lang) > -1) {
-        return block.body;
-    }
-
-    // Try and find the language definition in components folder
-    if (!languages[lang]) {
-        try {
-            requireSyntax(lang);
-        } catch (e) {
-            console.warn('Failed to load prism syntax: ' + lang);
-            console.warn(e);
-        }
-    }
-
-    if (!languages[lang]) lang = DEFAULT_LANGUAGE;
-
-    // Check against html, prism "markup" works for this
-    if (lang === 'html') {
-        lang = 'markup';
-    }
-
-    try {
-        // The process can fail (failed to parse)
-        highlighted = Prism.highlight(block.body, languages[lang]);
-    } catch (e) {
-        console.warn('Failed to highlight:');
-        console.warn(e);
-        highlighted = block.body;
-    }
-    return highlighted;
-}
-
 function createTabHeader(title, i, isActive) {
     let configIndex = title.indexOf('{');
     if (configIndex > -1) {
@@ -148,11 +98,9 @@ function createTabHeader(title, i, isActive) {
     return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '">' + title + '</div>';
 }
 
-function createTabBody(i, language, data) {
+function createTabBody(i, content) {
     let isActive = i == 0;
-    return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '"><pre><code class=\'lang-' + language + '\'>' +
-        data +
-        '</code></pre></div>';
+    return '<div class="tab' + (isActive ? ' active' : '') + '" data-codetab="' + i + '">' + content +'</div>';
 }
 
 function getCodeTabSeperator(block, context) {
@@ -179,49 +127,50 @@ module.exports = {
         return assets;
     },
     blocks: {
-        code: function(block) {
-            return processCode(null, block, this);
-        },
-        codetab: function(content) {
-            let codeTabSeperator = getCodeTabSeperator(content, this);
-			let hasDetails = ('codeTabDetails' in content.kwargs);
-			let detailsSummary = content.kwargs.codeTabDetails ||'点击展开隐藏的代码+';
-            let blocks = codeBlocks(content.body).map(({
-                lang,code
-            }) => ({
-                language: trim(lang),
-                body: trim(code)
-            }));
-            let result = '<div class="codetabs">';
+		codetab: function(block){
+			let hasDetails = ('codeTabDetails' in block.kwargs);
+			let detailsSummary = block.kwargs.codeTabDetails || DEFAULT_SUMMARY;
+			
+			let codeTabSeperator = getCodeTabSeperator(block, this);
+			let blocks = codeBlocks(block.body).map(e=>{
+				let data = {};
+			    let codeConfig = parseCodeConfig(e.lang, codeTabSeperator);	
+				data['code'] = escapeString(trim(e.code));
+				data['title'] = codeConfig['title'];
+				data['language'] = codeConfig['language'];				
+				if(!!codeConfig['data-line']){
+					data['data-line'] = codeConfig['data-line'];
+				}
+				return data;
+			});
+			let result = '<div class="codetabs">';
 			if(hasDetails){
 				result = `<details><summary class="tab-code-expand-collapse"><i class="fa fa-code"></i>&nbsp;${detailsSummary}</summary>${result}`;
 			}
-            let tabsHeader = '';
+			let tabsHeader = '';
             let tabsContent = '';
-            blocks.forEach((block, i) => {
-                let tabInfo = getCodeTabInfo(block.language, codeTabSeperator);
-                let data = processCode(tabInfo[0], block, this);
-                tabsHeader += createTabHeader(tabInfo[1], i, i == 0);
-                tabsContent += createTabBody(i, tabInfo[0], data);
+			blocks.forEach((b, i) => {
+				let dataLineEle = '';
+				let dataLine = b['data-line'];
+				if(!!dataLine){
+					dataLineEle =`data-line=${dataLine}`;
+				}
+				let content = `<pre class='lang-${b.language}' ${dataLineEle}><code class='lang-${b.language}'>${b.code}</code></pre>`;
+				tabsHeader += createTabHeader(b.title, i, i == 0);
+				tabsContent += createTabBody(i,content);
             });
-            result += '<div class="codetabs-header">' + tabsHeader + '</div>';
+			result += '<div class="codetabs-header">' + tabsHeader + '</div>';
             result += '<div class="codetabs-body">' + tabsContent + '</div>';
             result += '</div>';
 			if(hasDetails){
 				result += '</details>';
 			}
-            return result;
-        }
+			return result;
+		}
     },
     hooks: {
-
-        // Manually copy prism-ebook.css into the temporary directory that Gitbook uses for inlining
-        // styles from this plugin. The getAssets() (above) function can't be leveraged because
-        // ebook-prism.css lives outside the folder referenced by this plugin's config.
-        //
-        // @Inspiration https://github.com/GitbookIO/plugin-styles-less/blob/master/index.js#L8
         init: function() {
-
+			
             var book = this;
 
             syncFile(book, 'code', 'code.js', './code/code.js');
@@ -230,36 +179,109 @@ module.exports = {
             syncFile(book, 'codetab', 'codetab.js', './codetab/codetab.js');
             syncFile(book, 'codetab', 'codetab.css', './codetab/codetab.css');
 
-            // If failed to write prism-ebook.css. See https://git.io/v1LHY for side effects.
             if (isEbook(book)) {
                 syncFile(book, '', 'prism-ebook.css', './prism-ebook.css');
             }
 
         },
-        page: function(page) {
-
-            var highlighted = false;
-            var $ = cheerio.load(page.content);
-
-            // Prism css styles target the <code> and <pre> blocks using
-            // a substring CSS selector:
-            //
-            //    code[class*="language-"], pre[class*="language-"]
-            //
-            // Adding "language-" to <pre> element should be sufficient to trigger
-            // correct color theme.
-            //console.log(page.content);
-            $('pre').each(function() {
-                highlighted = true;
-                const $this = $(this);
-                $this.addClass('language-');
-            });
-
-            if (highlighted) {
-                page.content = $.html();
-            }
-
+	    page: function(page) {			
+            let highlighted = false;
+			let book = this;
+			let doc = JSDOM(page.content);
+			let $ = doc.querySelectorAll.bind(doc);
+			$('pre').forEach((e,i) =>{
+				let code = e.querySelector('code');
+				let codeConfig = parseCodeConfig(code.className,null);
+				let dataLine = codeConfig['data-line'];
+				if(!!dataLine){
+					e.setAttribute("data-line", dataLine);
+				}
+				code.className='';
+				code.classList.add("match-braces");
+				code.classList.add("language-"+codeConfig['language']);
+				let multipleLine = code.innerHTML.split('\n').length > 1;
+				if(multipleLine){
+				   e.classList.add("line-numbers");	
+				}
+				let details = codeConfig['details'];
+				if(codeConfig.hasOwnProperty('details')){
+					if(!details){
+						details = DEFAULT_SUMMARY;
+					}
+					e.setAttribute("data-details", details);
+				}
+				e.style.fontSize="13px";
+				highlighted = true;
+			});
+			if(highlighted){
+				let result = toHTML(doc);
+			    page.content = result;	
+			}
             return page;
         }
     }
 };
+
+function getConfig(context, property, defaultValue) {
+    var config = context.config ? /* 3.x */ context.config : /* 2.x */ context.book.config;
+    return config.get(property, defaultValue);
+}
+
+function getCodeTabSeperator(block, context) {
+    let codeTabSeperator = block.kwargs.codeTabSeperator || getConfig(context, 'pluginsConfig.prism.codeTabSeperator', '') || DEFAULT_CODE_TAB_SEPERATOR;
+    return codeTabSeperator;
+}
+
+function parseCodeConfig(configStr,codeTabSeperator) {
+    let configIndex = configStr.indexOf('{');
+	let result = {};
+    if (configIndex == -1) {
+        result['language'] = trim(configStr);
+    }else{
+        result['language'] = trim(configStr.substring(0,configIndex));		
+		let codeConfig = JSON.parse(configStr.substring(configIndex));
+		result['data-line'] = codeConfig['line'];
+		result['details'] = codeConfig['details'];
+	}
+	let language = result['language'];
+	if(language.indexOf('lang-')==0){
+		language = language.substring(5);
+	}
+	if(!!codeTabSeperator){
+	   let codeTabSeperatorIndex = language.indexOf(codeTabSeperator);
+       if(codeTabSeperatorIndex> -1 ){
+		   result['title'] = language.substring(codeTabSeperatorIndex + codeTabSeperator.length);
+		   language = language.substring(0, codeTabSeperatorIndex);
+	   }else{
+		   result['title'] = language;
+	   }
+	}
+	result['language'] = language;
+	return result;
+}
+
+function toHTML (fragment) {
+  var out = [];
+  var ch = fragment.children;
+  for (var i = 0, m = ch.length; i < m; ++i) {
+    out.push(ch.item(i).outerHTML);
+  }
+  return out.join('');
+}
+
+const AMP_REGEX = /&/g,
+  NBSP_REGEX = /\u00a0/g,
+  DOUBLE_QUOTE_REGEX = /"/g,
+  LT_REGEX = /</g,
+  GT_REGEX = />/g;
+
+function escapeString(str, attrMode) {
+    str = str.replace(AMP_REGEX, '&amp;').replace(NBSP_REGEX, '&nbsp;');
+
+    if (attrMode) {
+        str = str.replace(DOUBLE_QUOTE_REGEX, '&quot;');
+    } else {
+        str = str.replace(LT_REGEX, '&lt;').replace(GT_REGEX, '&gt;');
+    }
+    return str;
+}

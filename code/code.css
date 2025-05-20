@@ -26,27 +26,6 @@
   font-size: 15px;
 }
 
-.code-wrapper pre > code > span.code-line:before {
-  counter-increment: line;
-  color: #c1c7cd;
-  content: counter(line);
-  display: inline-block;
-  font-size: 12px;
-  margin-right: 1.5em;
-  width: 1em;
-}
-
-code > span.highlight-line{
-	display: block;
-    padding: 0 15px;
-    margin: 0 -15px -22.3px;
-	background: linear-gradient(to right, hsla(24, 20%, 50%, .1) 70%, hsla(24, 20%, 50%, 0.1));
-}
-
-code > span.highlight-line:last-child{
-	margin-bottom:-15px;
-}
-
 .code-expand-collapse{
 	background:#e7e7e7;
 	color:#2674BA;

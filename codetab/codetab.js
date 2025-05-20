@@ -8,5 +8,8 @@ require([
 
         $tabs.find('.tab').removeClass('active');
         $tabs.find('.tab[data-codetab="' + tabId + '"]').addClass('active');
+		
+		// bug,without this line,prismjs line highlight will not working
+		window.dispatchEvent(new Event('resize'));
     });
 });
