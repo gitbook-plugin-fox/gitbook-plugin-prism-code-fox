@@ -40,3 +40,13 @@
 	padding:5px 10px;
 	margin-bottom:5px
 }
+
+details > summary[class$="code-expand-collapse"]::after {
+  content: "▶";
+  position: absolute;
+  right: 30px;  
+}
+
+details[open] > summary[class$="code-expand-collapse"]::after {
+  content: "▼";
+}

@@ -12,7 +12,7 @@ const get = require('lodash/get');
 const jsdoms = require('jsdom');
 const JSDOM = jsdoms.jsdom;
  
-var DEFAULT_SUMMARY = '点击展开隐藏的代码+';
+var DEFAULT_SUMMARY = 'Click to expand and collapse code';
 var DEFAULT_LANGUAGE = 'markup';
 var DEFAULT_CODE_TAB_SEPERATOR = '::';
 var MAP_LANGUAGES = {
@@ -21,7 +21,9 @@ var MAP_LANGUAGES = {
     'rb': 'ruby',
     'cs': 'csharp',
     'sh': 'bash',
-    'html': 'markup'
+    'html': 'markup',
+	'mysql': 'sql',
+	'dockerfile': 'docker'
 };
 
 function getConfig(context, property, defaultValue) {
@@ -41,14 +43,17 @@ function isEbook(book) {
 
 function getAssets() {
 
-    var cssFiles = getConfig(this, 'pluginsConfig.prism.css', []);
-    var cssFolder = null;
-    var cssNames = [];
-    var cssName = null;
-
-    if (cssFiles.length === 0) {
-        cssFiles.push('prismjs/themes/prism.css');
-    }
+    let theme = getConfig(this, 'pluginsConfig.prism-fox.theme', null);
+    let cssFolder = null;
+    let cssNames = [];
+    let cssName = null;
+	
+	let cssFiles = [];
+	if(!!theme){
+		cssFiles.push(theme);
+	}else{
+		cssFiles.push('prismjs/themes/prism.min.css');
+	}
 
     cssFiles.forEach(function(cssFile) {
         let cssPath = require.resolve(cssFile);
@@ -104,7 +109,7 @@ function createTabBody(i, content) {
 }
 
 function getCodeTabSeperator(block, context) {
-    let codeTabSeperator = block.kwargs.codeTabSeperator || getConfig(context, 'pluginsConfig.prism.codeTabSeperator', '') || DEFAULT_CODE_TAB_SEPERATOR;
+    let codeTabSeperator = block.kwargs.codeTabSeperator || getConfig(context, 'pluginsConfig.prism-fox.codeTabSeperator', '') || DEFAULT_CODE_TAB_SEPERATOR;
     return codeTabSeperator;
 }
 
@@ -129,12 +134,13 @@ module.exports = {
     blocks: {
 		codetab: function(block){
 			let hasDetails = ('codeTabDetails' in block.kwargs);
-			let detailsSummary = block.kwargs.codeTabDetails || DEFAULT_SUMMARY;
+			let defaultSummary = getConfig(this, 'pluginsConfig.prism-fox.details-summary', null) || DEFAULT_SUMMARY;
+			let detailsSummary = block.kwargs.codeTabDetails || defaultSummary;
 			
 			let codeTabSeperator = getCodeTabSeperator(block, this);
 			let blocks = codeBlocks(block.body).map(e=>{
 				let data = {};
-			    let codeConfig = parseCodeConfig(e.lang, codeTabSeperator);	
+			    let codeConfig = parseCodeConfig(e.lang, codeTabSeperator,this);	
 				data['code'] = escapeString(trim(e.code));
 				data['title'] = codeConfig['title'];
 				data['language'] = codeConfig['language'];				
@@ -189,9 +195,10 @@ module.exports = {
 			let book = this;
 			let doc = JSDOM(page.content);
 			let $ = doc.querySelectorAll.bind(doc);
+			let defaultSummary = getConfig(this, 'pluginsConfig.prism-fox.details-summary', null) || DEFAULT_SUMMARY;
 			$('pre').forEach((e,i) =>{
 				let code = e.querySelector('code');
-				let codeConfig = parseCodeConfig(code.className,null);
+				let codeConfig = parseCodeConfig(code.className,null,book);
 				let dataLine = codeConfig['data-line'];
 				if(!!dataLine){
 					e.setAttribute("data-line", dataLine);
@@ -206,7 +213,7 @@ module.exports = {
 				let details = codeConfig['details'];
 				if(codeConfig.hasOwnProperty('details')){
 					if(!details){
-						details = DEFAULT_SUMMARY;
+						details = defaultSummary;
 					}
 					e.setAttribute("data-details", details);
 				}
@@ -232,7 +239,7 @@ function getCodeTabSeperator(block, context) {
     return codeTabSeperator;
 }
 
-function parseCodeConfig(configStr,codeTabSeperator) {
+function parseCodeConfig(configStr,codeTabSeperator,context) {
     let configIndex = configStr.indexOf('{');
 	let result = {};
     if (configIndex == -1) {
@@ -240,7 +247,7 @@ function parseCodeConfig(configStr,codeTabSeperator) {
     }else{
         result['language'] = trim(configStr.substring(0,configIndex));		
 		let codeConfig = JSON.parse(configStr.substring(configIndex));
-		result['data-line'] = codeConfig['line'];
+		result['data-line'] = codeConfig['lines'];
 		result['details'] = codeConfig['details'];
 	}
 	let language = result['language'];
@@ -256,6 +263,8 @@ function parseCodeConfig(configStr,codeTabSeperator) {
 		   result['title'] = language;
 	   }
 	}
+	let userDefinedLang = getConfig(context, 'pluginsConfig.prism-fox.lang', {});
+	language = userDefinedLang[language] || MAP_LANGUAGES[language] || language;
 	result['language'] = language;
 	return result;
 }

@@ -12,7 +12,7 @@ Adds the plugin to your `book.json`, then run `gitbook install` if you are build
 
 ```
 {
-    "plugins": ["prism-codetab-fox"]
+    "plugins": ["prism-code-fox"]
 }
 ```
 
@@ -81,16 +81,12 @@ class HelloWorld {
 **Config code:**
 
 ```json
-"prism": {
-    "ignore": [
-        "mermaid",
-        "eval-js",
-        "flow"
-    ],
-    "css":[
-        "prismjs/themes/prism-solarizedlight.css"	
-    ],
-    "codeTabSeperator":"$"
+"prism-fox": {
+    "theme": "prismjs/themes/prism-solarizedlight.min.css",
+    "lang":{
+        "dockerfile":"docker"
+    },
+    "details-summary":"Click to view more+"
 }
 ```
 
