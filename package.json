@@ -10,14 +10,14 @@
   "engines": {
     "gitbook": ">=2.4.1 <4.0.0"
   },
-  "homepage": "https://github.com/gitbook-plugin-fox/gitbook-plugin-prism-codetab-fox",
+  "homepage": "https://github.com/gitbook-plugin-fox/gitbook-plugin-prism-code-fox",
   "repository": {
     "type": "git",
-    "url": "https://github.com/gitbook-plugin-fox/gitbook-plugin-prism-codetab-fox.git"
+    "url": "https://github.com/gitbook-plugin-fox/gitbook-plugin-prism-code-fox.git"
   },
   "license": "Apache-2.0",
   "bugs": {
-    "url": "https://github.com/gitbook-plugin-fox/gitbook-plugin-prism-codetab-fox/issues"
+    "url": "https://github.com/gitbook-plugin-fox/gitbook-plugin-prism-code-fox/issues"
   },
   "dependencies": {
     "cheerio": "0.22.0",
