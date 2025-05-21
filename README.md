@@ -86,6 +86,7 @@ class HelloWorld {
     "lang":{
         "dockerfile":"docker"
     },
+    "table-parse": true,
     "details-summary":"Click to view more+"
 }
 ```

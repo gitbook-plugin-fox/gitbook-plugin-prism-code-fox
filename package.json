@@ -2,7 +2,7 @@
   "name": "gitbook-plugin-prism-code-fox",
   "description": "Prism highlighting for gitbook,enable code tab",
   "main": "index.js",
-  "version": "0.0.9",
+  "version": "0.1.1",
   "scripts": {
     "lint": "eslint index.js test.js",
     "test": "npm run lint && tape test.js"
@@ -24,7 +24,8 @@
     "mkdirp": "0.5.1",
     "prismjs": "^1.15.0",
 	"gfm-code-blocks": "1.0.0",
-	"lodash": "4.17.21"
+	"lodash": "4.17.21",
+	"showdown": "^2.1.0"
   },
   "devDependencies": {
     "eslint": "3.11.1",
