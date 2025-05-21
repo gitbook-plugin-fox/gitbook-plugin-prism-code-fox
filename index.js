@@ -232,7 +232,7 @@ function pageProcess(page) {
 
     let enableTableParse = getConfig(this, 'pluginsConfig.prism-fox.table-parse', false);
     if (enableTableParse) {
-        $("li > p").forEach((e, i) => {
+        $("li > p, blockquote > p").forEach((e, i) => {
             let tableRegex = /(?<=(\r?\n){2}|^)([^\r\n]*\|[^\r\n]*(\r?\n)?)+(?=(\r?\n){2}|$)/gm;
             let content = e.innerHTML;
             if (!tableRegex.test(content)) {
