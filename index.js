@@ -1,8 +1,5 @@
-var Prism = require('prismjs');
-var languages = require('prismjs').languages;
 var path = require('path');
 var fs = require('fs');
-var cheerio = require('cheerio');
 var mkdirp = require('mkdirp');
 var codeBlocks = require('gfm-code-blocks');
 var trim = require('lodash/trim');
@@ -175,6 +172,9 @@ module.exports = {
 		}
     },
     hooks: {
+		finish: function(){
+			//Prism.highlightAll();
+		},
         init: function() {
 			
             var book = this;
@@ -202,7 +202,7 @@ module.exports = {
 				let dataLine = codeConfig['data-line'];
 				if(!!dataLine){
 					e.setAttribute("data-line", dataLine);
-				}
+				}			
 				code.className='';
 				code.classList.add("match-braces");
 				code.classList.add("language-"+codeConfig['language']);
@@ -248,7 +248,9 @@ function parseCodeConfig(configStr,codeTabSeperator,context) {
         result['language'] = trim(configStr.substring(0,configIndex));		
 		let codeConfig = JSON.parse(configStr.substring(configIndex));
 		result['data-line'] = codeConfig['lines'];
-		result['details'] = codeConfig['details'];
+		if(codeConfig.hasOwnProperty('details')){
+			result['details'] = codeConfig['details'];
+		}
 	}
 	let language = result['language'];
 	if(language.indexOf('lang-')==0){

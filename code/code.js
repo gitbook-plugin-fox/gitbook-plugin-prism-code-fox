@@ -1,8 +1,6 @@
 require(['gitbook', 'jQuery'], function(gitbook, $) {
 
     const TERMINAL_HOOK = '**[terminal]'
-
-    var pluginConfig = {};
     var timeouts = {};
 
     function addCopyButton(wrapper) {
@@ -29,10 +27,6 @@ require(['gitbook', 'jQuery'], function(gitbook, $) {
         updateCopyButton(button);
     }
 
-    function initializePlugin(config) {
-        pluginConfig = config.code;
-    }
-
     function formatCodeBlock(block) {
         wrapper = block.wrap('<div class="code-wrapper"></div>');
 
@@ -54,12 +48,13 @@ require(['gitbook', 'jQuery'], function(gitbook, $) {
     }
 
     gitbook.events.bind('start', function(e, config) {
-        initializePlugin(config);
-
         addCopyTextarea();
     });
 
     gitbook.events.bind('page.change', function() {
+		if (typeof Prism !== 'undefined') {
+           Prism.highlightAll();
+        }
         $('pre').each(function(index,pre) {
             formatCodeBlock($(pre));
         });
