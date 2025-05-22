@@ -230,9 +230,9 @@ function pageProcess(page) {
         highlighted = true;
     });
 
-    let enableTableParse = getConfig(this, 'pluginsConfig.prism-fox.table-parse', false);
-    if (enableTableParse) {
-        $("li > p, blockquote > p").forEach((e, i) => {
+    let markdownTableSelector = getConfig(this, 'pluginsConfig.prism-fox.markdown-table-selector', null);
+    if (!!markdownTableSelector) {
+        $(markdownTableSelector).forEach((e, i) => {
             let tableRegex = /(?<=(\r?\n){2}|^)([^\r\n]*\|[^\r\n]*(\r?\n)?)+(?=(\r?\n){2}|$)/gm;
             let content = e.innerHTML;
             if (!tableRegex.test(content)) {
